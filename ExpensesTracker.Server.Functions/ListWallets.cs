@@ -1,0 +1,56 @@
+using ExpensesTracker.Server.Data.Interfaces;
+using ExpensesTracker.Shared.DTOs;
+using ExpensesTracker.Shared.Responses;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
+using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
+
+namespace ExpensesTracker.Server.Functions
+{
+    public class ListWallets
+    {
+        private readonly ILogger<ListWallets> _logger;
+        private readonly IWalletsRepository _walletsRep;
+        public ListWallets(ILogger<ListWallets> log, IWalletsRepository walletsRep)
+        {
+            _logger = log;
+            _walletsRep = walletsRep;
+        }
+
+        [FunctionName("ListWallets")]
+        [OpenApiOperation(operationId: "Run", tags: new[] { "name" })]
+        [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
+        [OpenApiParameter(name: "name", In = ParameterLocation.Query, Required = true, Type = typeof(string), Description = "The **Name** parameter")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "text/plain", bodyType: typeof(string), Description = "The OK response")]
+        public async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req)
+        {
+
+            string userId = "userId";
+            var wallets = await _walletsRep.ListByUserIdAsync(userId);
+            var result = wallets.Select(w => new WalletSummaryDto
+            {
+                Id = w.Id,
+                Name = w.Name,
+                Currency = w.Currency,
+                Balance = w.Balance,
+                Type = w.Type.Value
+                
+            });
+
+            return new OkObjectResult(
+                new APISuccessResponse<IEnumerable<WalletSummaryDto>>($"{wallets.Count()} wallets have been retrieved.", 
+                result)); //200
+        }
+    }
+}
+
